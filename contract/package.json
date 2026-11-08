@@ -1,0 +1,14 @@
+{
+  "name": "veto-guard-contract",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "near-sdk-js build src/contract.ts build/veto-guard.wasm"
+  },
+  "dependencies": {
+    "near-sdk-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
+  }
+}

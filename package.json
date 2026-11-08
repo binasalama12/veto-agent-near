@@ -1,0 +1,11 @@
+{
+  "name": "veto-agent-near",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VetoAgent — an on-chain policy guard for AI agents on NEAR: spending caps, recipient allowlists and a veto gate, enforced by a smart contract before any payment moves.",
+  "license": "MIT",
+  "scripts": {
+    "build:contract": "cd contract && npm run build",
+    "demo": "node agent/demo.mjs"
+  }
+}

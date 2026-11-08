@@ -1,0 +1,11 @@
+{
+  "name": "veto-agent-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "near-api-js": "^2.1.4",
+    "undici": "^7.0.0",
+    "undici": "^8.12.4"
+  }
+}
