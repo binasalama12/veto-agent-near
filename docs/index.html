@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VetoAgent — on-chain policy guard for AI agents (NEAR testnet)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b0e13; color:#e6e9ee; margin:0; padding:24px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color:#9aa4b2; margin-bottom: 20px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px; }
+  .card { background:#131722; border:1px solid #232a3a; border-radius:12px; padding:14px 16px; }
+  .card .k { color:#9aa4b2; font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  .card .v { font-size:20px; font-weight:650; margin-top:4px; word-break:break-all; }
+  table { width:100%; border-collapse: collapse; background:#131722; border:1px solid #232a3a; border-radius:12px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #1d2331; font-size:14px; vertical-align:top; }
+  th { color:#9aa4b2; font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  .ok { color:#3fb96f; font-weight:700; }
+  .no { color:#e5534b; font-weight:700; }
+  a { color:#6cb6ff; }
+  .foot { color:#9aa4b2; font-size:13px; margin-top:16px; }
+  code { background:#1a2030; padding:1px 5px; border-radius:5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ VetoAgent — VetoGuard dashboard</h1>
+  <div class="sub">An AI agent's money, guarded by a NEAR smart contract. Every payment the agent attempts is
+  checked on-chain against its owner's policy — per-transaction cap, daily cap, recipient allowlist, and an
+  owner kill-switch. Approved payments execute; everything else is <b>vetoed</b> and written to a public audit log.
+  Live on NEAR testnet.</div>
+
+  <div class="cards">
+    <div class="card"><div class="k">Guard contract</div><div class="v" id="contract">vetoguard.testnet</div></div>
+    <div class="card"><div class="k">Agent</div><div class="v" id="agent">vetoagent.testnet</div></div>
+    <div class="card"><div class="k">Vault balance</div><div class="v" id="vault">…</div></div>
+    <div class="card"><div class="k">Spent today</div><div class="v" id="spent">…</div></div>
+    <div class="card"><div class="k">Per-tx cap</div><div class="v" id="pertx">…</div></div>
+    <div class="card"><div class="k">Daily cap</div><div class="v" id="daily">…</div></div>
+    <div class="card"><div class="k">Allowlist</div><div class="v" id="allowlist">…</div></div>
+    <div class="card"><div class="k">Frozen by owner</div><div class="v" id="frozen">…</div></div>
+  </div>
+
+  <h2 style="font-size:18px">Audit log — every payment attempt, approved or vetoed</h2>
+  <table>
+    <thead><tr><th>Time (UTC)</th><th>Recipient</th><th>Amount</th><th>Verdict</th><th>Reason</th></tr></thead>
+    <tbody id="log"><tr><td colspan="5">Loading…</td></tr></tbody>
+  </table>
+
+  <div class="foot">
+    Data is read live from <code>vetoguard.testnet</code> via the public NEAR testnet RPC — no backend, nothing to fake.
+    Verify on <a href="https://testnet.nearblocks.io/address/vetoguard.testnet" target="_blank" rel="noopener">NearBlocks</a>.
+    Run the agent yourself: see the repo README (<code>node agent/demo.mjs</code>). Refreshes every 15 s.
+    Last updated: <span id="updated">—</span>
+  </div>
+</div>
+
+<script>
+const RPC = "https://rpc.testnet.near.org";
+const CONTRACT = "vetoguard.testnet";
+const AGENT = "vetoagent.testnet";
+
+async function viewFn(method, args) {
+  const res = await fetch(RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: "q", method: "query",
+      params: {
+        request_type: "call_function", finality: "final",
+        account_id: CONTRACT, method_name: method,
+        args_base64: btoa(JSON.stringify(args)),
+      },
+    }),
+  });
+  const data = await res.json();
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(data.result.result)));
+}
+const near = (yocto) => (Number(BigInt(yocto)) / 1e24).toFixed(4).replace(/\.?0+$/, "") + " NEAR";
+
+async function refresh() {
+  try {
+    const [policy, vault, spent, log] = await Promise.all([
+      viewFn("get_policy", { agent: AGENT }),
+      viewFn("get_vault_balance", { agent: AGENT }),
+      viewFn("get_spent_today", { agent: AGENT }),
+      viewFn("get_audit_log", { limit: 25 }),
+    ]);
+    document.getElementById("vault").textContent = near(vault);
+    document.getElementById("spent").textContent = near(spent);
+    if (policy) {
+      document.getElementById("pertx").textContent = near(policy.per_tx_cap);
+      document.getElementById("daily").textContent = near(policy.daily_cap);
+      document.getElementById("allowlist").textContent = policy.allowlist.join(", ");
+      document.getElementById("frozen").textContent = policy.frozen ? "YES" : "no";
+    }
+    document.getElementById("log").innerHTML = log.map((e) => `
+      <tr>
+        <td>${new Date(Number(BigInt(e.ts)) / 1e6).toISOString().replace("T", " ").slice(0, 19)}</td>
+        <td>${e.recipient}</td>
+        <td>${near(e.amount)}</td>
+        <td class="${e.status === "APPROVED" ? "ok" : "no"}">${e.status}</td>
+        <td>${e.reason}</td>
+      </tr>`).join("");
+    document.getElementById("updated").textContent = new Date().toLocaleTimeString();
+  } catch (err) {
+    document.getElementById("log").innerHTML = `<tr><td colspan="5">RPC read failed, retrying…</td></tr>`;
+  }
+}
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>
