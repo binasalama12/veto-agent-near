@@ -2,6 +2,10 @@
 
 **Track: AI Security & Defense** (also relevant: Agent Economy)
 
+- **Live dashboard:** https://binasalama12.github.io/veto-agent-near/ (reads the testnet contract directly via public RPC)
+- **Contract (NEAR testnet):** `vetoguard.testnet` — [explorer](https://testnet.nearblocks.io/address/vetoguard.testnet)
+- **Run the demo yourself:** `node agent/demo.mjs` (five scenarios, incl. three on-chain vetoes)
+
 An AI agent that can pay is an AI agent that can be robbed. Prompt injection,
 a hallucinated address, or a compromised tool call is all it takes for an
 autonomous agent to drain its own wallet — and a policy written in the agent's
